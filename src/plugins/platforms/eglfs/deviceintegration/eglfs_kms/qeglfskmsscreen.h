@@ -96,6 +96,8 @@ public:
 
     gbm_surface *surface() const { return m_gbm_surface; }
     gbm_surface *createSurface();
+    gbm_surface *createRenderSurface(QSize size);
+
     void destroySurface();
 
     void waitForFlip();

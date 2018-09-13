@@ -178,6 +178,13 @@ QPlatformWindow *QEglFSIntegration::createPlatformWindow(QWindow *window) const
 {
     QWindowSystemInterface::flushWindowSystemEvents(QEventLoop::ExcludeUserInputEvents);
     QEglFSWindow *w = qt_egl_device_integration()->createWindow(window);
+    bool isVirtual = window->property("virtualWindow").toBool();
+    if (isVirtual) {
+        auto bufferSize = window->property("virtualWindow_buffer_size").toSize();
+        w->setVirtual(bufferSize);
+        if (!window->size().isEmpty())
+            w->setGeometry(window->geometry());
+    }
     w->create();
     if (window->type() != Qt::ToolTip)
         w->requestActivateWindow();

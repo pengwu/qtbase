@@ -98,9 +98,21 @@ void QEglFSContext::runGLChecks()
 
 void QEglFSContext::swapBuffers(QPlatformSurface *surface)
 {
-    // draw the cursor
     if (surface->surface()->surfaceClass() == QSurface::Window) {
-        QPlatformWindow *window = static_cast<QPlatformWindow *>(surface);
+        auto window = static_cast<QEglFSWindow*>(surface);
+        if (window->isVirtual())
+        {
+            QSize size = window->geometry().size();
+            if (size.isEmpty())
+                return;
+
+            glReadPixels(0, 0, size.width(), size.height(), GL_RGBA, GL_UNSIGNED_BYTE, window->virtualBuffer());
+            if (glGetError() != GL_NO_ERROR)
+                qWarning() << "glGetError after glReadPixels: " << glGetError();
+
+            return;
+        }
+        // draw the cursor
         if (QEglFSCursor *cursor = qobject_cast<QEglFSCursor *>(window->screen()->cursor()))
             cursor->paintOnScreen();
     }

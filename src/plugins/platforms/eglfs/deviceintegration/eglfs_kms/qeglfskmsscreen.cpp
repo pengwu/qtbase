@@ -215,6 +215,15 @@ gbm_surface *QEglFSKmsScreen::createSurface()
     return m_gbm_surface;
 }
 
+gbm_surface *QEglFSKmsScreen::createRenderSurface(QSize size)
+{
+    return  gbm_surface_create(m_device->device(),
+                               size.width(),
+                               size.height(),
+                               GBM_FORMAT_XRGB8888,
+                               GBM_BO_USE_RENDERING);
+}
+
 void QEglFSKmsScreen::destroySurface()
 {
     if (m_gbm_bo_current) {

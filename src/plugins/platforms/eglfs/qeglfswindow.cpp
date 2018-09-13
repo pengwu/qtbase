@@ -45,9 +45,15 @@
 #include "qeglfshooks.h"
 
 QT_BEGIN_NAMESPACE
+#define VIRTUAL_WINDOW_BUFFER_WIDTH 1280
+#define VIRTUAL_WINDOW_BUFFER_HEIGHT 800
 
 QEglFSWindow::QEglFSWindow(QWindow *w)
     : QPlatformWindow(w),
+      m_isVirtual(false),
+      m_virtualWindowRect(0, 0, VIRTUAL_WINDOW_BUFFER_WIDTH, VIRTUAL_WINDOW_BUFFER_HEIGHT),
+      m_virtualWindowBuffer(nullptr),
+      m_virftualBufferSize(VIRTUAL_WINDOW_BUFFER_WIDTH, VIRTUAL_WINDOW_BUFFER_HEIGHT),
       m_backingStore(0),
       m_raster(false),
       m_winId(0),
@@ -101,7 +107,7 @@ void QEglFSWindow::create()
     // they will be composited onto the root window's surface.
     QEglFSScreen *screen = this->screen();
     QOpenGLCompositor *compositor = QOpenGLCompositor::instance();
-    if (screen->primarySurface() != EGL_NO_SURFACE) {
+    if (screen->primarySurface() != EGL_NO_SURFACE && !isVirtual()) {
         if (isRaster() && compositor->targetWindow()) {
             m_format = compositor->targetWindow()->format();
             return;
@@ -127,8 +133,10 @@ void QEglFSWindow::create()
         eglTerminate(screen->display());
         qFatal("EGL Error : Could not create the egl surface: error = 0x%x\n", error);
     }
-
-    screen->setPrimarySurface(m_surface);
+    if (isVirtual())
+        m_winId = screen->addVirtualWindow(this);
+    else
+        screen->setPrimarySurface(m_surface);
 
     if (isRaster()) {
         QOpenGLContext *context = new QOpenGLContext(QGuiApplication::instance());
@@ -157,7 +165,7 @@ void QEglFSWindow::destroy()
         if (cursor)
             cursor->resetResources();
 
-        if (screen->primarySurface() == m_surface)
+        if (screen->primarySurface() == m_surface && !isVirtual())
             screen->setPrimarySurface(EGL_NO_SURFACE);
 
         invalidateSurface();
@@ -165,6 +173,33 @@ void QEglFSWindow::destroy()
 
     m_flags = 0;
     QOpenGLCompositor::instance()->removeWindow(this);
+}
+
+void QEglFSWindow::setVirtual(const QSize bufferSize)
+{
+    if (bufferSize != m_virftualBufferSize)
+        m_virftualBufferSize = bufferSize;
+
+    if (bufferSize.isEmpty())
+        return;
+
+    m_virtualWindowBuffer = new uint8_t[ 4 * bufferSize.width() * bufferSize.height()];
+    m_isVirtual = true;
+}
+
+bool QEglFSWindow::isVirtual() const
+{
+    return m_isVirtual;
+}
+
+QSize QEglFSWindow::virtualBufferSize() const
+{
+    return m_virftualBufferSize;
+}
+
+uint8_t *QEglFSWindow::virtualBuffer()
+{
+    return m_virtualWindowBuffer;
 }
 
 void QEglFSWindow::invalidateSurface()
@@ -213,6 +248,17 @@ void QEglFSWindow::setVisible(bool visible)
 
 void QEglFSWindow::setGeometry(const QRect &r)
 {
+    if (isVirtual() && !r.isEmpty())
+    {
+        if (r == m_virtualWindowRect)
+            return;
+
+        if (r.width() > m_virftualBufferSize.width() || r.height() > m_virftualBufferSize.height())
+            return;
+
+        m_virtualWindowRect = r;
+        return;
+    }
     QRect rect;
     bool forceFullscreen = m_flags.testFlag(HasNativeWindow);
     if (forceFullscreen)
@@ -229,6 +275,9 @@ void QEglFSWindow::setGeometry(const QRect &r)
 
 QRect QEglFSWindow::geometry() const
 {
+    if (isVirtual())
+        return m_virtualWindowRect;
+
     // For yet-to-become-fullscreen windows report the geometry covering the entire
     // screen. This is particularly important for Quick where the root object may get
     // sized to some geometry queried before calling create().

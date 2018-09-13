@@ -36,6 +36,7 @@
 
 #include "qeglfsglobal.h"
 #include <QtCore/QPointer>
+#include <QHash>
 
 QT_BEGIN_NAMESPACE
 
@@ -51,6 +52,9 @@ public:
     QRect geometry() const Q_DECL_OVERRIDE;
     int depth() const Q_DECL_OVERRIDE;
     QImage::Format format() const Q_DECL_OVERRIDE;
+
+    uint addVirtualWindow(QEglFSWindow* window);
+    void removeVirtualWindow(QEglFSWindow* window);
 
     QSizeF physicalSize() const Q_DECL_OVERRIDE;
     QDpi logicalDpi() const Q_DECL_OVERRIDE;
@@ -77,7 +81,8 @@ private:
     QPointer<QWindow> m_pointerWindow;
     EGLSurface m_surface;
     QPlatformCursor *m_cursor;
-
+    QHash<WId, QEglFSWindow*> m_virtualWindowList;
+    uint m_virtualWindowId;
     friend class QEglFSWindow;
 };
 

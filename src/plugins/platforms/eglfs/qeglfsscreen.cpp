@@ -46,7 +46,8 @@ QT_BEGIN_NAMESPACE
 QEglFSScreen::QEglFSScreen(EGLDisplay dpy)
     : m_dpy(dpy),
       m_surface(EGL_NO_SURFACE),
-      m_cursor(0)
+      m_cursor(0),
+      m_virtualWindowId(0)
 {
     m_cursor = qt_egl_device_integration()->createCursor(this);
 }
@@ -70,6 +71,23 @@ int QEglFSScreen::depth() const
 QImage::Format QEglFSScreen::format() const
 {
     return qt_egl_device_integration()->screenFormat();
+}
+
+uint QEglFSScreen::addVirtualWindow(QEglFSWindow *window)
+{
+    if (window && !m_virtualWindowList.contains(window->winId()))
+    {
+        ++m_virtualWindowId;
+        m_virtualWindowList.insert(m_virtualWindowId, window);
+        return m_virtualWindowId;
+    }
+    return 0;
+}
+
+void QEglFSScreen::removeVirtualWindow(QEglFSWindow *window)
+{
+    if (window)
+        m_virtualWindowList.remove(window->winId());
 }
 
 QSizeF QEglFSScreen::physicalSize() const
@@ -163,6 +181,12 @@ QPixmap QEglFSScreen::grabWindow(WId wid, int x, int y, int width, int height) c
         // cursor, which is a plus.
         img = compositor->grab();
     } else {
+        if (m_virtualWindowList.contains(wid)) {
+            const auto virtualWindow = m_virtualWindowList.value(wid);
+            const QSize size = virtualWindow->geometry().size();
+            QImage img(virtualWindow->virtualBuffer(), size.width(), size.height(), QImage::Format_RGB32);
+            return QPixmap::fromImage(img.mirrored(false, true).rgbSwapped());
+        }
         // Just a single OpenGL window without compositing. Do not support this case for now. Doing
         // glReadPixels is not an option since it would read from the back buffer which may have
         // undefined content when calling right after a swapBuffers (unless preserved swap is

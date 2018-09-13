@@ -55,6 +55,11 @@ public:
     void create();
     void destroy();
 
+    void setVirtual(const QSize bufferSize);
+    bool isVirtual() const;
+    QSize virtualBufferSize() const;
+    uint8_t *virtualBuffer();
+
     void setGeometry(const QRect &) Q_DECL_OVERRIDE;
     QRect geometry() const Q_DECL_OVERRIDE;
     void setVisible(bool visible) Q_DECL_OVERRIDE;
@@ -89,6 +94,11 @@ public:
     void endCompositing() Q_DECL_OVERRIDE;
 
 protected:
+    bool m_isVirtual;
+    QRect m_virtualWindowRect;
+    uint8_t *m_virtualWindowBuffer;
+    QSize m_virftualBufferSize;
+
     QOpenGLCompositorBackingStore *m_backingStore;
     bool m_raster;
     WId m_winId;

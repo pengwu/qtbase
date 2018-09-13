@@ -37,6 +37,7 @@
 #include "qeglfskmsscreen.h"
 #include "qeglfskmscursor.h"
 #include "qeglfscursor.h"
+#include "qeglfswindow.h"
 
 #include <QtPlatformSupport/private/qdevicediscovery_p.h>
 #include <QtCore/QLoggingCategory>
@@ -131,6 +132,10 @@ EGLNativeWindowType QEglFSKmsIntegration::createNativeWindow(QPlatformWindow *pl
     Q_UNUSED(format);
 
     QEglFSKmsScreen *screen = static_cast<QEglFSKmsScreen *>(platformWindow->screen());
+    auto eglfWindow = static_cast<QEglFSWindow*>(platformWindow);
+    if (eglfWindow->isVirtual())
+        return reinterpret_cast<EGLNativeWindowType>(screen->createRenderSurface(eglfWindow->virtualBufferSize()));
+
     if (screen->surface()) {
         qWarning("Only single window per screen supported!");
         return 0;
